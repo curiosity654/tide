@@ -463,7 +463,9 @@ class TIDE:
 		This validates 3D-shaped inputs and reserves the public API while the full 3D evaluator is implemented.
 		"""
 		if not getattr(gt, 'is_3d', False) or not getattr(preds, 'is_3d', False):
-			raise ValueError('evaluate_3d requires both gt and preds to be 3d_det Data objects')
+			raise ValueError(
+				'evaluate_3d requires both gt and preds to have is_3d=True '
+				'(gt.is_3d={}, preds.is_3d={})'.format(getattr(gt, 'is_3d', False), getattr(preds, 'is_3d', False)))
 
 		if protocol not in ('kitti_3d', 'nuscenes_3d', 'waymo_3d'):
 			raise ValueError('Unsupported 3D protocol "{}"'.format(protocol))
@@ -650,4 +652,3 @@ class TIDE:
 			'main': self.get_main_errors(),
 			'special': self.get_special_errors()
 		}
-

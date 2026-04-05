@@ -82,7 +82,7 @@ class Data():
 
 		raise ValueError('3D box must be a 7-element list/tuple or dict with center/size/yaw')
 
-	def _add(self, image_id:int, class_id:int, box:object=None, mask:object=None, score:float=1, ignore:bool=False, **kwargs):
+	def _add(self, image_id:int, class_id:int, box:object=None, mask:object=None, score:float=1, ignore:bool=False, velocity:object=None):
 		""" Add a data object to this collection. You should use one of the below functions instead. """
 		self._make_default_class(class_id)
 		self._make_default_image(image_id)
@@ -97,7 +97,8 @@ class Data():
 			'mask'  : self._prepare_mask(mask),
 			'ignore': ignore,
 		}
-		ann.update(kwargs)
+		if velocity is not None:
+			ann['velocity'] = velocity
 		self.annotations.append(ann)
 
 		self.images[image_id]['anns'].append(new_id)
@@ -112,11 +113,15 @@ class Data():
 
 	def add_ground_truth_3d(self, image_id:int, class_id:int, box_3d:object, velocity:object=None):
 		""" Add a 3D ground truth. box_3d should be [x, y, z, l, w, h, yaw] or a dict with center/size/yaw. """
-		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, is_3d=True, velocity=velocity)
+		if not self.is_3d:
+			raise ValueError('add_ground_truth_3d requires Data(task_type="3d_det")')
+		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, velocity=velocity)
 
 	def add_detection_3d(self, image_id:int, class_id:int, score:int, box_3d:object, velocity:object=None):
 		""" Add a 3D detection. box_3d should be [x, y, z, l, w, h, yaw] or a dict with center/size/yaw. """
-		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, score=score, is_3d=True, velocity=velocity)
+		if not self.is_3d:
+			raise ValueError('add_detection_3d requires Data(task_type="3d_det")')
+		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, score=score, velocity=velocity)
 
 	def add_ignore_region(self, image_id:int, class_id:int=None, box:object=None, mask:object=None):
 		"""
