@@ -1,121 +1,120 @@
-# TIDE 扩展到 3D 目标检测的数据与架构重设计建议
+# TIDE 3D Detection Redesign Proposal (KITTI / nuScenes / Waymo)
 
-本文面向将当前 2D TIDE 扩展到 3D 检测评估场景（KITTI / nuScenes / Waymo）的工程设计。
+This document describes how to extend TIDE from 2D detection/segmentation evaluation to 3D detection for KITTI, nuScenes, and Waymo.
 
-## 1. 现状与核心限制
+## 1) Current limitations
 
-当前仓库的主流程是围绕 2D box/mask（COCO 风格）构建：
+The current core is 2D-first:
 
-- `tidecv/data.py`：2D 标注与检测结果容器
-- `tidecv/quantify.py`：匹配、误差归因、指标汇总
-- `tidecv/ap.py`：AP 计算
-- `tidecv/datasets.py`：COCO/LVIS/Pascal/Cityscapes 2D 数据加载器
+- `tidecv/data.py`: 2D annotations and detections
+- `tidecv/quantify.py`: matching + error attribution + reporting
+- `tidecv/ap.py`: AP calculation
+- `tidecv/datasets.py`: COCO/LVIS/Pascal/Cityscapes loaders
 
-直接用于 3D 会遇到以下问题：
+Direct 3D support is blocked by:
 
-1. 缺少 3D box 表达（中心点、尺寸、朝向、速度等）
-2. 匹配逻辑依赖 2D IoU，无法复用 KITTI / nuScenes / Waymo 的主流指标
-3. 误差类型仅覆盖 2D 场景，缺少深度/朝向/速度等 3D 误差
-4. 数据集坐标系不统一（camera / lidar / ego / global）
+1. no canonical 3D box schema,
+2. 2D IoU-centric matching,
+3. no 3D-specific error taxonomy,
+4. no coordinate-frame normalization across datasets.
 
-## 2. 目标设计原则
+## 2) Design principles
 
-1. **2D 向后兼容**：现有 API 与结果不破坏
-2. **插件化评估后端**：2D 与 3D 分离，避免在单一路径中堆条件分支
-3. **数据层标准化**：先统一 3D box 语义，再做指标/误差分析
-4. **数据集适配器化**：KITTI/nuScenes/Waymo 通过 adapter 接入，不污染核心逻辑
+1. Preserve 2D behavior and APIs.
+2. Keep 3D logic modular (new evaluator path, not many `if is_3d` branches).
+3. Standardize data schema first, then metrics and errors.
+4. Use dataset adapters for KITTI/nuScenes/Waymo format differences.
 
-## 3. 推荐重设计（分层）
+## 3) Proposed architecture
 
-### 3.1 数据模型层（Data Model）
+### 3.1 Data model layer
 
-建议在 `tidecv/data.py` 基础上扩展通用 annotation schema：
+Extend `Data` to support `task_type` and 3D geometry metadata:
 
-- 新增 `task_type`: `2d_det | 2d_seg | 3d_det`
-- 新增 3D box 规范字段（推荐 canonical）：
+- `task_type`: `2d_det | 2d_seg | 3d_det`
+- canonical 3D fields:
   - `center`: `[x, y, z]`
   - `size`: `[l, w, h]`
-  - `yaw`: 绕 z 或 y 轴旋转（需在元数据声明约定）
-  - `velocity`（可选）
+  - `yaw`: rotation around **z-axis in a right-handed z-up canonical frame**
+  - `velocity` (optional)
   - `frame`: `camera | lidar | ego | global`
 
-并提供：
+Add 3D APIs:
 
 - `add_ground_truth_3d(...)`
 - `add_detection_3d(...)`
-- 坐标系转换钩子（至少保证同一评估 run 内 frame 一致）
 
-### 3.2 匹配与指标层（Evaluator / Metrics）
+Each dataset adapter converts native box conventions to the canonical schema.
 
-建议在 `tidecv/quantify.py` 中抽象 evaluator 接口：
+### 3.2 Evaluator and metric layer
 
-- `BaseEvaluator`
-- `Evaluator2D`（复用现有逻辑）
-- `Evaluator3D`（新增）
+In `tidecv/quantify.py`, split evaluation into:
 
-`Evaluator3D` 中按数据集配置选择匹配与指标：
+- `Evaluator2D` (existing path)
+- `Evaluator3D` (new path)
 
-- KITTI：3D AP / BEV AP / AOS（按类别阈值）
-- nuScenes：mAP（distance threshold）+ NDS 分项（ATE/ASE/AOE/AVE/AAE）
-- Waymo：LEVEL_1/2 + mAPH（按官方定义）
+`Evaluator3D` should be protocol-aware:
 
-这样可以把“匹配规则 + 指标定义”从通用流程中解耦。
+- KITTI: 3D AP / BEV AP / AOS (class-specific thresholds)
+- nuScenes: mAP + NDS components
+- Waymo: Level_1/2 + mAPH
 
-### 3.3 误差归因层（Error Taxonomy）
+This keeps matching rules and metric definitions decoupled from the common pipeline.
 
-在 `tidecv/errors/` 新增 3D 误差类型（建议）：
+### 3.3 Error taxonomy layer
 
-- `DepthError`：距离/深度估计偏差
-- `OrientationError`：yaw 偏差
-- `ScaleError`：长宽高尺度偏差
-- `VelocityError`：速度方向或大小偏差（时序数据集）
-- 保留并复用：`ClsError`、`DuplicateError`、`BackgroundError`、`MissedError`
+Add 3D error classes under `tidecv/errors/`:
 
-同时保留 TIDE 的“误差修复后 dAP 下降贡献”思想，扩展为 3D 版本。
+- `DepthError`
+- `OrientationError`
+- `ScaleError`
+- `VelocityError` (for temporal datasets)
 
-### 3.4 数据集接入层（Dataset Adapters）
+Keep existing common classes (`ClsError`, `DuplicateError`, `BackgroundError`, `MissedError`) and extend TIDE-style error contribution analysis to 3D.
 
-在 `tidecv/datasets.py` 增加独立 loader/adapters（建议命名）：
+### 3.4 Dataset adapter layer
+
+In `tidecv/datasets.py`, add independent adapters:
 
 - `KITTI3D(...)`, `KITTI3DResult(...)`
 - `NuScenes3D(...)`, `NuScenes3DResult(...)`
 - `Waymo3D(...)`, `Waymo3DResult(...)`
 
-每个 adapter 只做：
+Each adapter should only:
 
-1. 读取原始标注/预测
-2. 转为统一 annotation schema
-3. 声明元信息（坐标系、类别映射、评估协议版本）
+1. parse source annotations/predictions,
+2. map to canonical 3D schema,
+3. attach metadata (frame, class map, protocol version).
 
-### 3.5 可视化与报告层
+### 3.5 Plotting/reporting layer
 
-`tidecv/plotting.py` 建议新增 3D 视图：
+Extend `tidecv/plotting.py` with 3D-oriented views:
 
-- BEV（鸟瞰）误差图
-- 深度/朝向/尺度误差直方图
-- 数据集特定指标表（KITTI/nuScenes/Waymo）
+- BEV error visualization,
+- depth/yaw/scale histograms,
+- protocol-specific score tables.
 
-## 4. 最小可落地实施路径（建议分阶段）
+## 4) Minimal implementation roadmap
 
-### Phase 1（最小闭环）
+### Phase 1 (smallest end-to-end path)
 
-1. 数据模型支持 3D box（不改现有 2D 行为）
-2. 新增 `Evaluator3D` 骨架与 3D 匹配接口
-3. 打通 KITTI 3D 的最小评估闭环（先支持 AP/BEV AP）
+1. Add canonical 3D data schema and APIs.
+2. Add `Evaluator3D` skeleton + matching interface.
+3. Ship KITTI-only minimal end-to-end flow first.
 
-### Phase 2（多数据集）
+### Phase 2
 
-1. 接入 nuScenes（先对齐官方检测评估入口）
-2. 接入 Waymo（先对齐官方 metric 导出）
-3. 完善 3D 误差分类与汇总报告
+1. Add nuScenes protocol integration.
+2. Add Waymo protocol integration.
+3. Expand 3D error attribution/reporting.
 
-### Phase 3（工程化）
+### Phase 3
 
-1. 增加回归测试与小样本 fixture
-2. 统一配置入口（阈值、类别映射、坐标系约定）
-3. 优化计算性能（批量匹配、向量化）
+1. Add regression fixtures/tests.
+2. Unify configuration for thresholds/class maps/frame conventions.
+3. Optimize matching performance.
 
-## 5. API 草案（示意）
+## 5) API sketch
 
 ```python
 from tidecv import TIDE, datasets
@@ -129,20 +128,20 @@ tide.evaluate_3d(
     gt=gt,
     preds=pred,
     protocol="kitti_3d",
-    iou_thresholds={"Car": 0.7, "Pedestrian": 0.5, "Cyclist": 0.5},
+    match_thresholds={"Car": 0.7, "Pedestrian": 0.5, "Cyclist": 0.5},  # 3D IoU or distance thresholds by protocol
 )
 
 tide.summarize()
 tide.plot()
 ```
 
-## 6. 与当前仓库兼容策略
+## 6) Backward compatibility strategy
 
-1. `evaluate(...)` 保持现状（2D）
-2. 新增 `evaluate_3d(...)`，避免破坏已有调用方
-3. 3D 相关能力尽量放在新模块（如 `tidecv/eval3d.py`），降低回归风险
-4. 文档明确：不同数据集优先对齐官方评估协议，再映射到统一 TIDE 误差视图
+1. Keep `evaluate(...)` unchanged for 2D.
+2. Add `evaluate_3d(...)` as a separate API.
+3. Place 3D logic in new modules where possible (e.g., `tidecv/eval3d.py`).
+4. Prioritize protocol alignment with official dataset evaluation definitions, then map into a unified TIDE error view.
 
 ---
 
-如果只做“最小改造”，建议先完成 **KITTI 单数据集端到端**，验证架构后再扩展 nuScenes 与 Waymo。
+For the smallest-risk rollout, implement and validate **KITTI-only first**, then extend to nuScenes and Waymo on the same architecture.
