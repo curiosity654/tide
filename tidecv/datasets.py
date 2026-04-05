@@ -308,37 +308,37 @@ def Cityscapes(path:str, name:str=None):
 
 
 def KITTI3D(path:str, name:str=None, split:str='val') -> Data:
-	"""3D dataset scaffold for KITTI. Parses no files yet; returns a configured 3D Data object."""
+	"""3D dataset scaffold for KITTI. Path is currently reserved for future parser implementation."""
 	if name is None:
 		name = 'KITTI3D_' + split
 	return Data(name, max_dets=100, task_type='3d_det', coordinate_frame='camera')
 
 def KITTI3DResult(path:str, name:str=None) -> Data:
-	"""3D prediction scaffold for KITTI results. Parses no files yet."""
+	"""3D prediction scaffold for KITTI results. Path is currently reserved for future parser implementation."""
 	if name is None:
 		name = default_name(path)
 	return Data(name, max_dets=100, task_type='3d_det', coordinate_frame='camera')
 
 def NuScenes3D(path:str, name:str=None, split:str='val') -> Data:
-	"""3D dataset scaffold for nuScenes. Parses no files yet; returns a configured 3D Data object."""
+	"""3D dataset scaffold for nuScenes. Path is currently reserved for future parser implementation."""
 	if name is None:
 		name = 'NuScenes3D_' + split
 	return Data(name, max_dets=500, task_type='3d_det', coordinate_frame='global')
 
 def NuScenes3DResult(path:str, name:str=None) -> Data:
-	"""3D prediction scaffold for nuScenes results. Parses no files yet."""
+	"""3D prediction scaffold for nuScenes results. Path is currently reserved for future parser implementation."""
 	if name is None:
 		name = default_name(path)
 	return Data(name, max_dets=500, task_type='3d_det', coordinate_frame='global')
 
 def Waymo3D(path:str, name:str=None, split:str='val') -> Data:
-	"""3D dataset scaffold for Waymo. Parses no files yet; returns a configured 3D Data object."""
+	"""3D dataset scaffold for Waymo. Path is currently reserved for future parser implementation."""
 	if name is None:
 		name = 'Waymo3D_' + split
 	return Data(name, max_dets=200, task_type='3d_det', coordinate_frame='vehicle')
 
 def Waymo3DResult(path:str, name:str=None) -> Data:
-	"""3D prediction scaffold for Waymo results. Parses no files yet."""
+	"""3D prediction scaffold for Waymo results. Path is currently reserved for future parser implementation."""
 	if name is None:
 		name = default_name(path)
 	return Data(name, max_dets=200, task_type='3d_det', coordinate_frame='vehicle')

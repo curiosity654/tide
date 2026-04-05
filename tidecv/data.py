@@ -20,7 +20,7 @@ class Data():
 	def __init__(self, name:str, max_dets:int=100, task_type:str='2d_det', coordinate_frame:str=None):
 		valid_frames = {None, 'camera', 'lidar', 'ego', 'global', 'vehicle'}
 		if coordinate_frame not in valid_frames:
-			raise ValueError('coordinate_frame must be one of {}'.format(sorted([x for x in valid_frames if x is not None])))
+			raise ValueError('coordinate_frame must be one of: camera, lidar, ego, global, vehicle')
 
 		self.name     = name
 		self.max_dets = max_dets
@@ -111,7 +111,7 @@ class Data():
 		""" Add a ground truth. If box or mask is None, this GT will be ignored for that mode. """
 		self._add(image_id, class_id, box, mask)
 
-	def add_detection(self, image_id:int, class_id:int, score:int, box:object=None, mask:object=None):
+	def add_detection(self, image_id:int, class_id:int, score:float, box:object=None, mask:object=None):
 		""" Add a predicted detection. If box or mask is None, this prediction will be ignored for that mode. """
 		self._add(image_id, class_id, box, mask, score=score)
 

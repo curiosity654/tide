@@ -462,8 +462,8 @@ class TIDE:
 		Initial 3D evaluation entrypoint.
 		This validates 3D-shaped inputs and reserves the public API while the full 3D evaluator is implemented.
 		"""
-		gt_is_3d = getattr(gt, 'is_3d', False)
-		preds_is_3d = getattr(preds, 'is_3d', False)
+		gt_is_3d = gt.is_3d
+		preds_is_3d = preds.is_3d
 		if not gt_is_3d or not preds_is_3d:
 			raise ValueError(
 				'evaluate_3d requires both gt and preds to have is_3d=True '
