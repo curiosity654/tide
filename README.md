@@ -70,6 +70,21 @@ The currently supported datasets are COCO, LVIS, Pascal, and Cityscapes. More de
 
 For a design analysis on extending TIDE to 3D detection datasets (KITTI / nuScenes / Waymo), see [DESIGN_3D.md](DESIGN_3D.md).
 
+Initial phase-1 3D scaffolding is now available in the API:
+
+```python
+from tidecv import TIDE, datasets
+
+gt = datasets.KITTI3D('/path/to/kitti')
+preds = datasets.KITTI3DResult('/path/to/results.json')
+
+gt.add_ground_truth_3d(image_id=1, class_id=1, box_3d=[0, 0, 0, 4.0, 1.8, 1.6, 0.0])
+preds.add_detection_3d(image_id=1, class_id=1, score=0.9, box_3d=[0, 0, 0, 4.0, 1.8, 1.6, 0.0])
+
+# API reserved for upcoming full 3D evaluator implementation:
+TIDE().evaluate_3d(gt, preds, protocol='kitti_3d')
+```
+
 # Citation
 If you use TIDE in your project, please cite
 ```

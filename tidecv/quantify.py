@@ -456,6 +456,26 @@ class TIDE:
 		
 		return run
 
+	def evaluate_3d(self, gt:Data, preds:Data, protocol:str='kitti_3d', match_thresholds:dict=None,
+					name:str=None, use_for_errors:bool=True):
+		"""
+		Initial 3D evaluation entrypoint.
+		This validates 3D-shaped inputs and reserves the public API while the full 3D evaluator is implemented.
+		"""
+		if not getattr(gt, 'is_3d', False) or not getattr(preds, 'is_3d', False):
+			raise ValueError('evaluate_3d requires both gt and preds to be 3d_det Data objects')
+
+		if protocol not in ('kitti_3d', 'nuscenes_3d', 'waymo_3d'):
+			raise ValueError('Unsupported 3D protocol "{}"'.format(protocol))
+
+		if match_thresholds is None:
+			match_thresholds = {}
+
+		name = preds.name if name is None else name
+		raise NotImplementedError(
+			'3D evaluation backend is not implemented yet. '
+			'Received protocol="{}", run="{}", thresholds={}.'.format(protocol, name, match_thresholds))
+
 	def evaluate_range(self, gt:Data, preds:Data, thresholds:list=COCO_THRESHOLDS, pos_threshold:float=None,
 							background_threshold:float=None, mode:str=None, name:str=None) -> dict:
 
@@ -630,5 +650,4 @@ class TIDE:
 			'main': self.get_main_errors(),
 			'special': self.get_special_errors()
 		}
-
 
