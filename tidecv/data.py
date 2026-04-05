@@ -20,7 +20,7 @@ class Data():
 	def __init__(self, name:str, max_dets:int=100, task_type:str='2d_det', coordinate_frame:str=None):
 		valid_frames = {None, 'camera', 'lidar', 'ego', 'global', 'vehicle'}
 		if coordinate_frame not in valid_frames:
-			raise ValueError('coordinate_frame must be one of: camera, lidar, ego, global, vehicle')
+			raise ValueError('coordinate_frame must be one of: None, camera, lidar, ego, global, vehicle')
 
 		self.name     = name
 		self.max_dets = max_dets
