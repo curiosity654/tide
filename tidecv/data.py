@@ -17,9 +17,16 @@ class Data():
 	'max_dets' specifies the maximum number of detections the model is allowed to output for a given image.
 	"""
 
-	def __init__(self, name:str, max_dets:int=100):
+	def __init__(self, name:str, max_dets:int=100, task_type:str='2d_det', coordinate_frame:str=None):
+		valid_frames = {None, 'camera', 'lidar', 'ego', 'global', 'vehicle'}
+		if coordinate_frame not in valid_frames:
+			raise ValueError('coordinate_frame must be one of: None, camera, lidar, ego, global, vehicle')
+
 		self.name     = name
 		self.max_dets = max_dets
+		self.task_type = task_type
+		self.coordinate_frame = coordinate_frame
+		self.is_3d = self.task_type == '3d_det'
 
 		self.classes     = {}  # Maps class ID to class name 
 		self.annotations = []  # Maps annotation ids to the corresponding annotation / prediction
@@ -60,13 +67,32 @@ class Data():
 	def _prepare_mask(self, mask:object):
 		return mask
 
-	def _add(self, image_id:int, class_id:int, box:object=None, mask:object=None, score:float=1, ignore:bool=False):
+	def _prepare_box_3d(self, box_3d:object):
+		if box_3d is None:
+			return None
+
+		if isinstance(box_3d, dict):
+			center = box_3d.get('center')
+			size   = box_3d.get('size')
+			yaw    = box_3d.get('yaw')
+
+			if center is None or size is None or yaw is None:
+				raise ValueError('3D box dict must include center, size, and yaw')
+
+			box_3d = list(center) + list(size) + [yaw]
+
+		if isinstance(box_3d, (list, tuple)) and len(box_3d) == 7:
+			return list(box_3d)
+
+		raise ValueError('3D box must be a 7-element list/tuple or dict with center/size/yaw')
+
+	def _add(self, image_id:int, class_id:int, box:object=None, mask:object=None, score:float=1, ignore:bool=False, velocity:object=None):
 		""" Add a data object to this collection. You should use one of the below functions instead. """
 		self._make_default_class(class_id)
 		self._make_default_image(image_id)
 		new_id = len(self.annotations)
 
-		self.annotations.append({
+		ann = {
 			'_id'   : new_id,
 			'score' : score,
 			'image' : image_id,
@@ -74,7 +100,10 @@ class Data():
 			'bbox'  : self._prepare_box(box),
 			'mask'  : self._prepare_mask(mask),
 			'ignore': ignore,
-		})
+		}
+		if velocity is not None:
+			ann['velocity'] = velocity
+		self.annotations.append(ann)
 
 		self.images[image_id]['anns'].append(new_id)
 
@@ -82,9 +111,21 @@ class Data():
 		""" Add a ground truth. If box or mask is None, this GT will be ignored for that mode. """
 		self._add(image_id, class_id, box, mask)
 
-	def add_detection(self, image_id:int, class_id:int, score:int, box:object=None, mask:object=None):
+	def add_detection(self, image_id:int, class_id:int, score:float, box:object=None, mask:object=None):
 		""" Add a predicted detection. If box or mask is None, this prediction will be ignored for that mode. """
 		self._add(image_id, class_id, box, mask, score=score)
+
+	def add_ground_truth_3d(self, image_id:int, class_id:int, box_3d:object, velocity:object=None):
+		""" Add a 3D ground truth. box_3d should be [x, y, z, l, w, h, yaw] or a dict with center/size/yaw. """
+		if not self.is_3d:
+			raise ValueError('add_ground_truth_3d requires Data(task_type="3d_det")')
+		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, velocity=velocity)
+
+	def add_detection_3d(self, image_id:int, class_id:int, score:float, box_3d:object, velocity:object=None):
+		""" Add a 3D detection. box_3d should be [x, y, z, l, w, h, yaw] or a dict with center/size/yaw. """
+		if not self.is_3d:
+			raise ValueError('add_detection_3d requires Data(task_type="3d_det")')
+		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, score=score, velocity=velocity)
 
 	def add_ignore_region(self, image_id:int, class_id:int=None, box:object=None, mask:object=None):
 		"""
