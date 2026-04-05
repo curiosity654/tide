@@ -18,6 +18,10 @@ class Data():
 	"""
 
 	def __init__(self, name:str, max_dets:int=100, task_type:str='2d_det', coordinate_frame:str=None):
+		valid_frames = {None, 'camera', 'lidar', 'ego', 'global', 'vehicle'}
+		if coordinate_frame not in valid_frames:
+			raise ValueError('coordinate_frame must be one of {}'.format(sorted([x for x in valid_frames if x is not None])))
+
 		self.name     = name
 		self.max_dets = max_dets
 		self.task_type = task_type
@@ -117,7 +121,7 @@ class Data():
 			raise ValueError('add_ground_truth_3d requires Data(task_type="3d_det")')
 		self._add(image_id, class_id, box=self._prepare_box_3d(box_3d), mask=None, velocity=velocity)
 
-	def add_detection_3d(self, image_id:int, class_id:int, score:int, box_3d:object, velocity:object=None):
+	def add_detection_3d(self, image_id:int, class_id:int, score:float, box_3d:object, velocity:object=None):
 		""" Add a 3D detection. box_3d should be [x, y, z, l, w, h, yaw] or a dict with center/size/yaw. """
 		if not self.is_3d:
 			raise ValueError('add_detection_3d requires Data(task_type="3d_det")')

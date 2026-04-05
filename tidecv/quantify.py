@@ -462,10 +462,12 @@ class TIDE:
 		Initial 3D evaluation entrypoint.
 		This validates 3D-shaped inputs and reserves the public API while the full 3D evaluator is implemented.
 		"""
-		if not getattr(gt, 'is_3d', False) or not getattr(preds, 'is_3d', False):
+		gt_is_3d = getattr(gt, 'is_3d', False)
+		preds_is_3d = getattr(preds, 'is_3d', False)
+		if not gt_is_3d or not preds_is_3d:
 			raise ValueError(
 				'evaluate_3d requires both gt and preds to have is_3d=True '
-				'(gt.is_3d={}, preds.is_3d={})'.format(getattr(gt, 'is_3d', False), getattr(preds, 'is_3d', False)))
+				'(gt.is_3d={}, preds.is_3d={})'.format(gt_is_3d, preds_is_3d))
 
 		if protocol not in ('kitti_3d', 'nuscenes_3d', 'waymo_3d'):
 			raise ValueError('Unsupported 3D protocol "{}"'.format(protocol))
