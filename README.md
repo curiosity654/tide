@@ -68,6 +68,8 @@ Check out the [example notebook](https://github.com/dbolya/tide/blob/master/exam
 # Datasets
 The currently supported datasets are COCO, LVIS, Pascal, and Cityscapes. More details and documentation on how to write your own database drivers coming soon!
 
+For a design analysis on extending TIDE to 3D detection datasets (KITTI / nuScenes / Waymo), see [DESIGN_3D.md](DESIGN_3D.md).
+
 # Citation
 If you use TIDE in your project, please cite
 ```
